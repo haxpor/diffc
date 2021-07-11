@@ -1,5 +1,9 @@
 # diffc
+
 diff colorifying tool e.g. coloring diff output from perforce, etc
+
+Some tools didn't have color output for diff operation properly, although mainly
+one of those tools is `p4`. Git properly output diff color just fine.
 
 # Build
 
