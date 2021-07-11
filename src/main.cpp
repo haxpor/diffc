@@ -13,12 +13,61 @@ inline static constexpr std::string_view kPrefixWhiteTxt = "\033[1;37m"sv;
 inline static constexpr std::string_view kPostfixTxt = "\033[0m"sv;
 inline static constexpr std::string_view kPostfixWithNLTxt = "\033[0m\n"sv;
 
-static bool FindCmdOption(int argc, char* argv[], const char* searchOption)
+enum class DiffVariantType
+{
+	Unknown,
+	Perforce
+};
+
+/**
+ * Find whether argument list of the program contains the 'searchOption' as specified.
+ *
+ * @param argc number of arguments
+ * @param argv argument list
+ * @param targetOpt target command line's flag option
+ * @param outFoundIndex return index of found flag option if specified as non-null. It will be ignored if not found.
+ * @return True if found, otherwise return false.
+ */
+static bool FindCmdOption(int argc, char* argv[], const char* targetOpt, int* outFoundIndex=nullptr)
 {
 	for (int i=1; i<argc; ++i)
 	{
-		if (std::strcmp(argv[i], searchOption) == 0)
+		if (std::strcmp(argv[i], targetOpt) == 0)
+		{
+			if (outFoundIndex != nullptr)
+				*outFoundIndex = i;
 			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Get value of argument flag as specified in 'flagOption', then return into
+ * 'outValue'.
+ *
+ * @param argc number of arguments
+ * @param argv argument list
+ * @param targetOpt target command line's flag option to get its value
+ * @param outValue Pointer to pointer of c-string to contain a value of 'targetOpt' if found
+ * @return True if found such flag option, and its value can be acquired. Otherwise
+ * return false.
+ */
+static bool GetCmdValue(int argc, char* argv[], const char* targetOpt, char** outValue)
+{
+	int flagIndex = -1;
+	if (FindCmdOption(argc, argv, targetOpt, &flagIndex))
+	{
+		// check if valid, and is in range
+		if (flagIndex != -1 && (flagIndex+1) <= (argc-1))
+		{
+			if (outValue != nullptr)
+				*outValue = argv[flagIndex+1];	
+
+			return true;
+		}
+		else
+			return false;
 	}
 	return false;
 }
@@ -161,6 +210,37 @@ int main(int argc, char* argv[])
 		std::cerr << "See diffc --help\n";
 		return -1;
 	}
+
+	// our support diff-variant
+	const std::pair<std::string_view, DiffVariantType> diffVariants[] = { {"perforce", DiffVariantType::Perforce} };
+
+	DiffVariantType variantType {DiffVariantType::Unknown};
+
+	// get diff-variant
+	{
+		char* diffVariantValue;
+		if (GetCmdValue(argc, argv, "-t", &diffVariantValue))
+		{
+			const std::string_view specifiedDiffVariant(diffVariantValue);
+			for (auto dVariantPair : diffVariants)
+			{
+				if (specifiedDiffVariant.compare(dVariantPair.first) == 0)
+				{
+					// found
+					variantType = dVariantPair.second;
+					break;
+				}
+			}
+		}
+	}
+
+	// check if diff-variant is what we support
+	if (variantType == DiffVariantType::Unknown)
+	{
+		std::cerr << "Not support unknown diff variant\n";
+		return -1;
+	}
+	
 	char lineBuffer[kBUFFER_SIZE];
 
 	while (true)
@@ -174,7 +254,9 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		colorify_perforce(lineBuffer);
+		if (variantType == DiffVariantType::Perforce)
+			colorify_perforce(lineBuffer);
+		// ... maybe add support for other types if need
 	}
 	return 0;
 }
