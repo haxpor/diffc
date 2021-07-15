@@ -31,5 +31,9 @@
 *.out
 *.app
 
+# vim swap
+*.swp
+*.swo
+
 # output program
 diffc
