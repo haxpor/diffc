@@ -1,17 +1,9 @@
 #include <iostream>
 #include <cstring>
-#include <string_view>
 #include <regex>
-
-using namespace std::literals;
+#include "ColorifyText.h"
 
 inline static constexpr int kBUFFER_SIZE = 1024;
-inline static constexpr std::string_view kPrefixRedTxt = "\033[1;31m"sv;
-inline static constexpr std::string_view kPrefixGreenTxt = "\033[1;32m"sv;
-inline static constexpr std::string_view kPrefixCyanTxt = "\033[1;36m"sv;
-inline static constexpr std::string_view kPrefixWhiteTxt = "\033[1;37m"sv;
-inline static constexpr std::string_view kPostfixTxt = "\033[0m"sv;
-inline static constexpr std::string_view kPostfixWithNLTxt = "\033[0m\n"sv;
 
 enum class DiffVariantType
 {
@@ -82,7 +74,6 @@ static void colorify_perforce(const char* lineBuffer)
 
 	struct ProcessingState
 	{
-		bool isPrevProcessed {false};
 		ProcessingType type {ProcessingType::NONDU};
 	};
 
@@ -97,34 +88,36 @@ static void colorify_perforce(const char* lineBuffer)
 	auto lineW = std::string_view(lineBuffer, len);
 	bool doneProcessed = false;
 
-	// check to only do regex to color line range changes only when necessary
-	if (state.isPrevProcessed)
+	// first character checking for optimization not to execute regex every line
+	if (lineW[0] != ' ' &&
+		lineW[0] != '<' &&
+		lineW[0] != '>' &&
+		state.type == ProcessingType::NONDU)
 	{
-		if (state.type == ProcessingType::NONDU)
+		std::string inputLine(lineBuffer);
+		std::smatch regexMatchResult;
+		// e.g. 14,16c14,19, 516c516, or 3c3
+		// also note it can be 'a' for addition, 'c' for change, and 'd' for deletion
+		std::regex rgx ("^[0-9]+,?[0-9]*[acd][0-9]+,?[0-9]*\\s*");
+		if (std::regex_match(inputLine, regexMatchResult, rgx))
 		{
-			std::string inputLine(lineBuffer);
-			std::smatch regexMatchResult;
-			// e.g. 14,16c14,19, 516c516, or 3c3
-			std::regex rgx ("[0-9]+,?[0-9]*c[0-9]+,?[0-9]*\\s");
-			if (std::regex_match(inputLine, regexMatchResult, rgx))
-			{
-				std::cout << kPrefixCyanTxt << lineW << kPostfixWithNLTxt;
-				doneProcessed = true;
-			}
+			ColorifyText::Print(ColorifyText::Color::Cyan, lineW);
+			doneProcessed = true;
 		}
-		else
+	}
+	else if (lineW[0] != ' ' &&
+			 lineW[0] != '-' &&
+			 lineW[0] != '+')
+	{
+		std::string inputLine(lineBuffer);
+		std::smatch regexMatchResult;
+		// e.g. @@ -11,9 +11,12 @@, @@ -513,7 +513,7 @@, or @@ -1,6 +1,6 @@
+		std::regex rgx ("^@@ -[0-9]+,[0-9]+ \\+[0-9]+,[0-9]+ @@\\s*");
+		if (std::regex_match(inputLine, regexMatchResult, rgx))
 		{
-			std::string inputLine(lineBuffer);
-			std::smatch regexMatchResult;
-			// e.g. @@ -11,9 +11,12 @@, @@ -513,7 +513,7 @@, or @@ -1,6 +1,6 @@
-			std::regex rgx ("@@ -[0-9]+,[0-9]+ \\+[0-9]+,[0-9]+ @@\\s");
-			if (std::regex_match(inputLine, regexMatchResult, rgx))
-			{
-				std::cout << kPrefixCyanTxt << lineW << kPostfixWithNLTxt;
-				doneProcessed = true;
-			}
+			ColorifyText::Print(ColorifyText::Color::Cyan, lineW);
+			doneProcessed = true;
 		}
-		state.isPrevProcessed = false;
 	}
 
 	// for non- "-du" flags used
@@ -133,8 +126,7 @@ static void colorify_perforce(const char* lineBuffer)
 	{
 		if (lineW.compare(0, 5, "==== ") == 0)
 		{
-			std::cout << kPrefixWhiteTxt << lineW << kPostfixWithNLTxt;
-			state.isPrevProcessed = true;
+			ColorifyText::Print(lineW);
 			state.type = ProcessingType::NONDU;
 			doneProcessed = true;
 		}
@@ -146,8 +138,7 @@ static void colorify_perforce(const char* lineBuffer)
 		if (lineW.compare(0, 4, "--- ") == 0 ||
 			lineW.compare(0, 4, "+++ ") == 0)
 		{
-			std::cout << kPrefixWhiteTxt << lineW << kPostfixWithNLTxt;
-			state.isPrevProcessed = true;
+			ColorifyText::Print(lineW);
 			state.type = ProcessingType::DU;
 			doneProcessed = true;
 		}
@@ -159,13 +150,13 @@ static void colorify_perforce(const char* lineBuffer)
 		// removal - color as red
 		if (lineBuffer[0] == '<' && lineBuffer[1] == ' ')
 		{
-			std::cout << kPrefixRedTxt << lineW << kPostfixWithNLTxt;
+			ColorifyText::Print(ColorifyText::Color::Red, lineW);
 			doneProcessed = true;
 		}
 		// additional - color as green
 		else if (lineBuffer[0] == '>' && lineBuffer[1] == ' ')
 		{
-			std::cout << kPrefixGreenTxt << lineW << kPostfixWithNLTxt;
+			ColorifyText::Print(ColorifyText::Color::Green, lineW);
 			doneProcessed = true;
 		}
 	}
@@ -174,15 +165,15 @@ static void colorify_perforce(const char* lineBuffer)
 	{
 		// removal - color as red
 		if (lineBuffer[0] == '-' &&
-			!(len == 4 && lineW.compare(0, len-1, "---") == 0))	// ignore change separator
+			!(len >= 3 && lineW.compare(0, 3, "---") == 0))	// ignore change separator
 		{
-			std::cout << kPrefixRedTxt << lineW << kPostfixWithNLTxt;
+			ColorifyText::Print(ColorifyText::Color::Red, lineW);
 			doneProcessed = true;
 		}
 		// additional - color as green
 		else if (lineBuffer[0] == '+')
 		{
-			std::cout << kPrefixGreenTxt << lineW << kPostfixWithNLTxt;
+			ColorifyText::Print(ColorifyText::Color::Green, lineW);
 			doneProcessed = true;
 		}
 	}
@@ -195,6 +186,9 @@ static void colorify_perforce(const char* lineBuffer)
 
 int main(int argc, char* argv[])
 {
+	if (!ColorifyText::Init())
+		std::cerr << "ColorifyText initialization error\n";
+
 	if (FindCmdOption(argc, argv, "--help"))
 	{
 		std::cout << "Usage: diffc -t <diff-variant>\n\n";
