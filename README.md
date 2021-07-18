@@ -1,27 +1,33 @@
-# diffc
+# diffp4
 
-diff colorifying tool e.g. coloring diff output from perforce, etc
+Perforce's `p4` tool has no built-in support for its diff output.
+So `diffp4` is created to solve that problem.
 
-Some tools didn't have color output for diff operation properly, although mainly
-one of those tools is `p4`. Git properly output diff color just fine.
+PS. I'm not interested in solving this problem with `P4DIFF` which *might* be able
+to solve the problem.
 
 # Build
+
+## Linux/Unix
 
 * `make`
 * `sudo make install`
 
+## Windows
+
+* `make.bat`
+
+> If you use WSL, then you can do that via `cmd.exe /c make.bat` but you need to make sure you are in Visual Studio environment in order for `cl.exe` to be picked up.
+
 # Usage
 
-* `p4 diff | diffc -t perforce`
-* `p4 diff -du | diffc -t perforce`
-* `p4 describe -S 1234567 | diffc -t perforce`
+The program itself reads the input from the standard input. So you send input
+either via `|` (pipe), or reading from file.
 
-> Substitute `diffc` with `diffc.exe` when execute it on Windows.
-
-# Shorten the keys strokes
-
-* Linux, you can use `alias` with your `bash_aliases` to shorten typing for `-t ...`. Windows
-* Windows, you can use `doskey` with similar effect.
+* `p4 diff | diffp4 -t perforce`
+* `p4 diff -du | diffp4 -t perforce`
+* `p4 describe -S 1234567 | diffp4 -t perforce`
+* `diffp4 < /somedir/anotherdir/p4_diff.diff`
 
 # Support
 

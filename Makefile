@@ -3,7 +3,7 @@
 COMPILER=g++
 CXX_FLAGS=-std=c++17 -Wall -Wextra -pedantic -Wfatal-errors -g -O2 -fno-rtti
 SRC_DIR=src
-OUT=diffc
+OUT=diffp4
 
 all: ${SRC_DIR}/main.o
 	${COMPILER} $< -o ${OUT}
