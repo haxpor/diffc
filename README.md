@@ -19,6 +19,11 @@ to solve the problem.
 
 > If you use WSL, then you can do that via `cmd.exe /c make.bat` but you need to make sure you are in Visual Studio environment in order for `cl.exe` to be picked up.
 
+# Avaiable on PPA
+
+* `sudo add-apt-repository ppa:haxpor/combined`
+* `sudo apt install diffp4`
+
 # Usage
 
 The program itself reads the input from the standard input. So you send input
